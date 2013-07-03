@@ -54,7 +54,7 @@ sections = [ 'news', 'articles', 'interviews' ]
 # the range of date (both inclusive to download
 # date_range = (date(2013, 6, 20), date(2013, 6, 22))
 date_range = (date(2013, 7, 3), date(2013, 7, 3))
-date_range = (date.today()-timedelta(days = 1), date.today()-timedelta(days = 1))
+# date_range = (date.today()-timedelta(days = 1), date.today()-timedelta(days = 1))
 
 # the range of date to override for sections
 section_date_ranges = {
