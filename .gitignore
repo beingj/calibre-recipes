@@ -19,6 +19,8 @@ develop-eggs
 lib
 lib64
 debug
+linuxtoy
+cnbeta.*
 
 # Installer logs
 pip-log.txt

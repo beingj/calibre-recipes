@@ -1,0 +1,175 @@
+# -*- python -*-
+
+import re, urlparse, itertools
+from calibre.ebooks.BeautifulSoup import NavigableString, Tag
+from datetime import date, timedelta, datetime
+import sys
+
+language = 'zh'
+
+site_url = 'http://linuxtoy.org/'
+
+title_prefix = 'linuxtoy'
+
+# the sections to download
+sections = [ 'archives' ]
+
+# the range of date (both inclusive to download
+date_range = (date(2013, 6, 30), date.today())
+# date_range = (date.today()-timedelta(days = 1), date.today()-timedelta(days = 1))
+
+# the range of date to override for sections
+section_date_ranges = {
+    # 'archives': (date(2013, 6, 21), date(2013, 6, 22)),
+}
+
+_section_texts = {}
+_section_item_ids = {
+    'archives' : [u'post'],
+}
+        
+# do NOT touch the code below unless you know what to do
+
+def range2str(range, shorten):
+    year_fmt = '%Y%m%d'
+    month_fmt = '%m%d'
+    day_fmt = '%d'
+
+    begin, end = range
+    if begin == end:
+        return begin.strftime(year_fmt)
+    else:
+        text = begin.strftime(year_fmt) + "~"
+        if not shorten:
+            return text + end.strftime(year_fmt)
+        
+        if begin.year == end.year and begin.month == end.month:
+            return text + end.strftime(day_fmt)
+
+        if begin.year == end.year:
+            return text + end.strftime(month_fmt)
+            
+        return text + end.strftime(year_fmt)
+
+def generate_title(prefix):
+    text = prefix + ' ' + range2str(date_range, True)
+    
+    for sec in sections:
+        range = section_date_ranges.get(sec)
+        if range:
+            text = text + ' ' + sec[0].upper() + range2str(range, True)
+    
+    return text
+
+def find_by_id(tag, name, pat):
+    for t in tag.findAll(name):
+        t_id = t.get('id')
+        print '>>> tag id ' + str(t_id)
+        if not t_id: continue
+        m = re.search(pat, t_id)
+        if not m: continue
+        print '>>> match find'
+        
+        yield t
+
+class LinuxToy(BasicNewsRecipe):
+    title = title_prefix
+    
+    language = language
+    
+    no_stylesheets = True
+    
+    keep_only_tags = [ { 'class': 'post' } ]
+    
+    remove_tags = [
+        { 'class' : "entrylist"},
+    ]
+    
+    def get_items(self, section, end):
+        print '>>> Retrieving items for section: ', section
+    
+        text_retrieved = False
+        page = 0
+        total_page = 1
+        day = end
+        while True:
+            page += 1
+            if page > total_page:
+                text_retrieved = False
+                page = 1
+                total_page = 1
+                year = day.year
+                month = day.month -1
+                if month < 1:
+                    month += 12
+                    year -= 1
+
+                day = date(year, month, 1)
+                
+            print '>>> page is', page
+            print '>>> day is', day
+            if page == 1:
+                url = site_url + section + '/' + str(day.year) + '/' + '%02d' % (day.month)
+            else:
+                url = site_url + section + '/' + str(day.year) + '/' + '%02d' % (day.month) + '/page/' + str(page)
+            print '>>> Loading items from ' + url
+            root = self.index_to_soup(url)
+            if total_page == 1:
+                postmeta = root.find('p', {'class': 'postmeta'})
+                if postmeta:
+                    total_page = int(postmeta.contents[2][2:-2])
+            content_ul = root.find('ul', { 'class': 'entrylist' })
+            
+            if not text_retrieved:
+                text_retrieved = True
+                text = root.find('div', {'class': 'post'}).h2.string.strip()
+                _section_texts[section] = text
+                print '>>> Text for section "' + section + '": ' + text
+
+            for item_id in _section_item_ids[section]:
+                print '>>> find_by_id ' + item_id
+                for item_li in find_by_id(content_ul, 'li', item_id):
+                    item = {}
+                    link = item_li.findAll('a')[-2]
+                    item['title'] = link.string.strip()
+                    item['url'] = urlparse.urljoin(site_url, link['href'])
+                    item['description'] = item['title']
+
+                    date_str = item_li.contents[0][:8]
+                    item['date'] = datetime.strptime(date_str, '%y-%m-%d').date()
+                    print '>>> date ' + str(item['date'])
+                    day = item['date']
+                    
+                    print '>>> Item parsed: ', item
+
+                    yield item
+
+    def parse_index(self):
+        self.title = generate_title(self.title)
+    
+        index = []
+        for sec in sections:
+            item_list = []
+        
+            range = section_date_ranges.get(sec)
+            if not range: range = date_range
+            
+            begin, end = range
+            for item in self.get_items(sec, end):
+                date = item['date']
+                
+                if date > end: continue
+                if date < begin: break
+
+                item_list.append(item)
+                print '>>> append item ' + str(item)
+            
+            index.append((_section_texts[sec] + ' (' + range2str(range, False) + ')', item_list))
+
+        return index
+    
+    def postprocess_html(self, soup, first_fetch):
+        # print '>>> post html\n' + str(soup)
+        
+        soup.find('strong').extract()
+        return soup
