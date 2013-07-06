@@ -8,6 +8,7 @@ import sys
 language = 'zh'
 
 site_url = 'http://linuxtoy.org/'
+# site_url = 'http://127.0.0.1/'
 
 title_prefix = 'linuxtoy'
 
@@ -17,6 +18,8 @@ sections = [ 'archives' ]
 # the range of date (both inclusive to download
 date_range = (date(2013, 6, 30), date.today())
 # date_range = (date.today()-timedelta(days = 1), date.today()-timedelta(days = 1))
+date_range = (date(2013, 6, 29), date(2013, 6, 29))
+date_range = (date(2013, 7, 4), date(2013, 7, 4))
 
 # the range of date to override for sections
 section_date_ranges = {
@@ -170,6 +173,6 @@ class LinuxToy(BasicNewsRecipe):
     
     def postprocess_html(self, soup, first_fetch):
         # print '>>> post html\n' + str(soup)
-        
-        soup.find('strong').extract()
+        soup.findAll('div', {'class': "calibre_navbar calibre_rescale_70"})[0].extract()
+        soup.findAll('strong')[-1].extract()
         return soup
