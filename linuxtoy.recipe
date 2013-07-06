@@ -16,10 +16,10 @@ title_prefix = 'linuxtoy'
 sections = [ 'archives' ]
 
 # the range of date (both inclusive to download
-date_range = (date(2013, 6, 30), date.today())
+date_range = (date(2013, 6, 1), date.today())
+# date_range = (date(2013, 6, 29), date(2013, 6, 29))
+# date_range = (date(2013, 7, 4), date(2013, 7, 4))
 # date_range = (date.today()-timedelta(days = 1), date.today()-timedelta(days = 1))
-date_range = (date(2013, 6, 29), date(2013, 6, 29))
-date_range = (date(2013, 7, 4), date(2013, 7, 4))
 
 # the range of date to override for sections
 section_date_ranges = {

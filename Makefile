@@ -1,4 +1,5 @@
-IN=linuxtoy.recipe
+# IN=linuxtoy.recipe
+IN=ctci.recipe
 EXT=.mobi
 OUT=$(basename $(IN))$(EXT)
 

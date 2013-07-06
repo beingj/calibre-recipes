@@ -1,0 +1,147 @@
+# -*- python -*-
+
+import re, urlparse, itertools
+from calibre.ebooks.BeautifulSoup import NavigableString, Tag
+from datetime import date, timedelta, datetime
+import sys
+
+language = 'utf-8'
+language = 'en-us'
+
+site_url = 'http://hawstein.com'
+# site_url = 'http://127.0.0.1/'
+
+site_title = u'Cracking the coding interview--问题与解答'
+
+# do NOT touch the code below unless you know what to do
+
+def find_by_id(tag, name, pat):
+    for t in tag.findAll(name):
+        t_id = t.get('id')
+        print '>>> tag id ' + str(t_id)
+        if not t_id: continue
+        m = re.search(pat, t_id)
+        if not m: continue
+        print '>>> match find'
+        
+        yield t
+
+class Ctci(BasicNewsRecipe):
+    title = site_title
+    
+    language = language
+    
+    # auto_cleanup = True
+    # auto_cleanup_keep = '//*[@class="FeatureTitle"]'
+    # remove_tags_before = { 'class' : 'MagazineStyle' }
+    # remove_tags_after  = { 'class' : 'MagazineStyle' }
+    # remove_tags_before = 'strong'
+    # remove_tags_after = ('div', dict(id='post'))
+    no_stylesheets = True
+    keep_only_tags = [ { 'id': 'post' } ]
+    
+    # remove_tags = [
+    #     { 'class' : "entrylist"},
+    # ]
+    
+    def get_text(self, ele):
+        title = ''
+
+        for c in ele.contents:
+            if isinstance(c, NavigableString):
+                title = title + str(c)
+            elif c.name == 'br':
+                title = title + ': '
+            else:
+                title = title + self.get_text(c)
+        
+        return title.strip()
+        
+    def get_description(self, link):
+        description = ''
+    
+        ele = link.nextSibling
+        
+        while ele:
+            if isinstance(ele, NavigableString):
+                description = description + str(ele)
+            elif ele.name == 'br':
+                description = description + ' '
+
+            ele = ele.nextSibling
+    
+        return description.strip()
+    
+    def parse_index(self):
+        # site_url = 'http://hawstein.com/posts/ctci-solutions-contents.html'
+        soup = self.index_to_soup(site_url + '/posts/ctci-solutions-contents.html')
+        
+        self.title = soup.html.head.title.string.strip()
+        
+        mainContent = soup.find('div', { 'id' : "post" })
+
+        articles_dict = {}
+        article_list = []
+        
+# <p><strong>Chapter 1 | Arrays and Strings</strong></p>
+# start from 1.1.html
+# <p>1.1
+# <a href="http://hawstein.com/posts/1.1.html">Implement an algorithm to determine if a string has all unique
+# characters. What if you can not use additional data structures?
+# </a></p>
+# end with 19.11.html
+# <a href="http://hawstein.com/posts/19.11.html">Design an algorithm to find all pairs of integers within an array
+        
+        in_toc = False
+        for link in mainContent.findAll('a'):
+            href = link['href']
+            print '>>> href: ' + href
+            
+            # <a href="http://hawstein.com/posts/1.1.html">Implement an algorithm to determine if a string has all unique
+            if not re.match(r"/posts/.+\.html", href):
+                print '>>> not match re'
+                continue
+
+            if href == '/posts/1.1.html':
+                print '>>> in toc become true'
+                in_toc = True
+                
+            if not in_toc:
+                continue
+            
+            print '>>> re match and in toc'
+            
+            title = self.get_text(link)
+            
+            a = articles_dict.get(href)
+            if a:
+                old_title = a['title']
+                if not old_title.endswith(':'):
+                    old_title = old_title + ':'
+
+                a['title'] = old_title + ' ' + title
+            else:
+                a = { 'title' : title, 'url' : site_url + href }
+                article_list.append(a)
+                print '>>> one a added begin'
+                print a
+                print '>>> one a added end'
+                
+                articles_dict[href] = a
+                
+            if link.parent.name == 'p':
+                a['description'] = self.get_description(link)
+            elif link.parent.name == 'strong' and len(link.contents) > 1:
+                a['description'] = self.get_description(link.parent)
+                
+            if href == '/posts/19.11.html':
+                print '>>> end of toc'
+                break
+        
+        return [('Default', article_list)]
+    
+    
+    def postprocess_html(self, soup, first_fetch):
+        # print '>>> post html\n' + str(soup)
+        soup.find('div', {'class': "calibre_navbar calibre_rescale_70"}).extract()
+        return soup
