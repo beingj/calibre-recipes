@@ -12,6 +12,7 @@ site_url = 'http://hawstein.com'
 # site_url = 'http://127.0.0.1/'
 
 site_title = u'Cracking the coding interview--问题与解答'
+max_n = 100
 
 # do NOT touch the code below unless you know what to do
 
@@ -38,6 +39,7 @@ class Ctci(BasicNewsRecipe):
     # remove_tags_before = 'strong'
     # remove_tags_after = ('div', dict(id='post'))
     no_stylesheets = True
+    no_stylesheets = False
     keep_only_tags = [ { 'id': 'post' } ]
     
     # remove_tags = [
@@ -53,7 +55,8 @@ class Ctci(BasicNewsRecipe):
             elif c.name == 'br':
                 title = title + ': '
             else:
-                title = title + self.get_text(c)
+                pass
+                # title = title + self.get_text(c)
         
         return title.strip()
         
@@ -92,6 +95,7 @@ class Ctci(BasicNewsRecipe):
 # end with 19.11.html
 # <a href="http://hawstein.com/posts/19.11.html">Design an algorithm to find all pairs of integers within an array
         
+        ii = 0
         in_toc = False
         for link in mainContent.findAll('a'):
             href = link['href']
@@ -120,20 +124,27 @@ class Ctci(BasicNewsRecipe):
                     old_title = old_title + ':'
 
                 a['title'] = old_title + ' ' + title
+                a['description'] = a['title']
             else:
                 a = { 'title' : title, 'url' : site_url + href }
                 article_list.append(a)
+                articles_dict[href] = a
+                a['description'] = a['title']
                 print '>>> one a added begin'
                 print a
                 print '>>> one a added end'
+                ii += 1
                 
-                articles_dict[href] = a
-                
+            print '>>> link.parent.name == ', link.parent.name
             if link.parent.name == 'p':
-                a['description'] = self.get_description(link)
-            elif link.parent.name == 'strong' and len(link.contents) > 1:
-                a['description'] = self.get_description(link.parent)
+                a['title'] = self.get_text(link.parent) + ' ' + a['title']
                 
+            print '>>> a title: ', a['title']
+            print '>>> a des: ', a['description']
+            # sys.exit()
+            
+            if ii >= max_n: break
+            
             if href == '/posts/19.11.html':
                 print '>>> end of toc'
                 break
@@ -144,4 +155,13 @@ class Ctci(BasicNewsRecipe):
     def postprocess_html(self, soup, first_fetch):
         # print '>>> post html\n' + str(soup)
         soup.find('div', {'class': "calibre_navbar calibre_rescale_70"}).extract()
+        authoring = soup.find('div', {'class': 'authoring'})
+        # <body><div id="post">
+        post_div = soup.find('div', {'id': 'post'})
+        for i in post_div.findAll('div')[:1]:
+            i.extract()
+                             
+        for i in post_div.findAll('p')[-4:]:
+            i.extract()
+        
         return soup
